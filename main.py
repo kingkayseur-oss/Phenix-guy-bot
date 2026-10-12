@@ -1,7 +1,11 @@
 import os
+import sys
+import time
 import random
+import platform
 import asyncio
 import logging
+import traceback
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
 
@@ -17,10 +21,14 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     ChatMemberHandler,
-    CallbackQueryHandler,
     ContextTypes,
     filters,
 )
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -29,15 +37,15 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-BOT_NAME = "PHÉNI"
+BOT_NAME = "🌊ᬼ⃟ ⃪ₘᵣ ₖᵢₙG ₖₐYₛₑᵤᵣ ₜₕₑ GₗᵢₜCₕ Dₑᵥ ᡃ🛀⃝⤸𓆪⎯꯭᪳♔"
 DEVELOPER_NAME = "@Mr_king_kayseur"
 PREFIX = "/"
 
-# Remplace ces deux valeurs par les informations de ta chaîne.
 CHANNEL_URL = "https://t.me/Glitch_Dev_Fenix667"
 CHANNEL_ID = "4454958268"
 
-# Mets ici le lien direct de ton image.
+# 🖼️ Image utilisée pour TOUTES les commandes
+# Mets un lien DIRECT (fichier .jpg/.png), pas une page ibb.co
 START_IMAGE = "https://ibb.co/ycWd72ZM"
 
 WELCOME_IMAGE = START_IMAGE
@@ -57,21 +65,7 @@ FAKE_TASKS = [
 RECENT_MESSAGES = defaultdict(deque)
 SCORES = defaultdict(int)
 NUMBER_GAMES = {}
-
-QUIZZES = [
-    ("Quelle est la planète rouge ?", "mars"),
-    ("Combien de jours dans une semaine ?", "7"),
-    ("Quel animal est le roi des animaux ?", "lion"),
-    ("Combien font 8 × 7 ?", "56"),
-    ("Comment doro une purgeuse?", "être stylé"),
-    ("Qui est le father du bot ?", "@Mr_king_kayseur"),
-]
-
-RIDDLES = [
-    ("J'ai des aiguilles mais je ne couds pas.", "horloge"),
-    ("Plus je sèche, plus je deviens mouillée.", "serviette"),
-    ("Je monte et descends sans bouger.", "escalier"),
-]
+START_TIME = time.time()
 
 
 def configured_channel():
@@ -84,7 +78,7 @@ def configured_channel():
 
 def royal_box(title, lines):
     return (
-        f"╭─〔 ✦ 𝐏𝐇É𝐍𝐈𝐗 𝐆𝐔𝐘 ✦ 〕─╮\n"
+        "╭─〔 ✦ 𝐏𝐇É𝐍𝐈𝐗 𝐆𝐔𝐘 ✦ 〕─╮\n"
         f"│ 𓆩♛𓆪 {title}\n"
         + "".join(f"│ {line}\n" for line in lines)
         + "╰────────────────╯\n"
@@ -94,26 +88,30 @@ def royal_box(title, lines):
 
 def main_menu_text(user):
     return (
-        "╭─〔 ♛ 𝐏𝐇É𝐍𝐈𝐗 𝐆𝐔𝐘 ♛ 〕─╮\n"
+        "╭─〔 ♛ 𝐏𝐇𝐄́𝐍𝐈𝐗 𝐆𝐔𝐘 ♛ 〕─╮\n"
         "│ ✦ 𝐁𝐔𝐆 𝐁𝐎𝐓 ✦\n"
         "╰────────────────╯\n\n"
         "𓆩👑𓆪 𝐔𝐒𝐄𝐑 𝐈𝐍𝐅𝐎\n"
         f"✧ 𝐍𝐨𝐦 : {user.full_name}\n"
         f"✧ 𝐈𝐃 : {user.id}\n"
         f"✧ 𝐏𝐫𝐞́𝐟𝐢𝐱𝐞 : {PREFIX}\n\n"
-        "╭─〔 ✦ 𝐆É𝐍É𝐑𝐀𝐋 ✦ 〕─╮\n"
+        "╭─〔 ✦ 𝐆𝐄́𝐍𝐄́𝐑𝐀𝐋 ✦ 〕─╮\n"
         "│ /start • /menu • /help\n"
         "│ /id • /info • /rules\n"
         "╰────────────────╯\n\n"
         "╭─〔 🍓 𝐆𝐋𝐈𝐓𝐂𝐇 𝐋𝐀𝐁 〕─╮\n"
-        "│ /bugmenu • /bug\n"
-        "│ /glitch • /ferror\n"
-        "│ /load • /matrix\n"
-        "│ /diagnostic • /stop\n"
+        "│ /bugmenu • /bug • /ping\n"
+        "│ /glitch • /ferror • /load\n"
+        "│ /matrix • /diagnostic • /stop\n"
         "╰────────────────╯\n\n"
-        "╭─〔 🛡️ 𝐌𝐎𝐃É𝐑𝐀𝐓𝐈𝐎𝐍 〕─╮\n"
+        "╭─〔 🛡️ 𝐌𝐎𝐃𝐄́𝐑𝐀𝐓𝐈𝐎𝐍 〕─╮\n"
         "│ /ban • /unban\n"
         "│ /mute • /unmute\n"
+        "╰────────────────╯\n\n"
+        "╭─〔 🔎 𝐈𝐍𝐅𝐎𝐒 𝐑𝐄́𝐄𝐋𝐋𝐄𝐒 〕─╮\n"
+        "│ /whois • /chatstats\n"
+        "│ /uptime • /sysinfo\n"
+        "│ /admins • /members\n"
         "╰────────────────╯\n\n"
         "╭─〔 🎮 𝐉𝐄𝐔𝐗 〕─╮\n"
         "│ /quiz • /devinette\n"
@@ -123,17 +121,34 @@ def main_menu_text(user):
     )
 
 
+# ═══════ ENVOI AVEC IMAGE (toutes les commandes) ═══════
+
+async def send_royal(update, text, image=None, keyboard=None, parse_mode=None):
+    """Envoie le texte avec une image. Fallback texte si l'image échoue."""
+    image = image or START_IMAGE
+    msg = update.effective_message
+    if image:
+        try:
+            await msg.reply_photo(
+                photo=image,
+                caption=text,
+                reply_markup=keyboard,
+                parse_mode=parse_mode,
+            )
+            return
+        except Exception:
+            logging.exception("Envoi image impossible, fallback texte")
+    await msg.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
+
+
 async def is_admin(update, context):
     if not update.effective_chat or not update.effective_user:
         return False
-
     if update.effective_chat.type == "private":
         return True
-
     try:
         member = await context.bot.get_chat_member(
-            update.effective_chat.id,
-            update.effective_user.id,
+            update.effective_chat.id, update.effective_user.id
         )
         return member.status in (
             ChatMemberStatus.ADMINISTRATOR,
@@ -146,11 +161,8 @@ async def is_admin(update, context):
 async def has_channel_access(user_id, context):
     if not configured_channel():
         return False
-
     try:
-        member = await context.bot.get_chat_member(
-            CHANNEL_ID, user_id
-        )
+        member = await context.bot.get_chat_member(CHANNEL_ID, user_id)
         return member.status in (
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
@@ -171,41 +183,35 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton("📢 Rejoindre la chaîne", url=CHANNEL_URL)]]
         )
-    try:
-        if START_IMAGE:
-            await update.message.reply_photo(
-                photo=START_IMAGE, caption=text, reply_markup=keyboard
-            )
-        else:
-            await update.message.reply_text(text, reply_markup=keyboard)
-    except Exception:
-        await update.message.reply_text(text, reply_markup=keyboard)
+    await send_royal(update, text, keyboard=keyboard)
 
 
 async def menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(main_menu_text(update.effective_user))
+    await send_royal(update, main_menu_text(update.effective_user))
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        royal_box("𝐀𝐈𝐃𝐄", ["Utilise /menu pour voir toutes les commandes."])
+    await send_royal(
+        update, royal_box("𝐀𝐈𝐃𝐄", ["Utilise /menu pour voir toutes les commandes."])
     )
 
 
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
-    await update.message.reply_text(
+    await send_royal(
+        update,
         royal_box(
             "𝐈𝐃𝐄𝐍𝐓𝐈𝐅𝐈𝐀𝐍𝐓𝐒",
             [f"𝐔𝐬𝐞𝐫 𝐈𝐃 : {user.id}", f"𝐂𝐡𝐚𝐭 𝐈𝐃 : {chat.id}"],
-        )
+        ),
     )
 
 
 async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    await update.message.reply_text(
+    await send_royal(
+        update,
         royal_box(
             "𝐈𝐍𝐅𝐎 𝐔𝐓𝐈𝐋𝐈𝐒𝐀𝐓𝐄𝐔𝐑",
             [
@@ -213,71 +219,285 @@ async def info_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"𝐔𝐬𝐞𝐫𝐧𝐚𝐦𝐞 : @{user.username or 'aucun'}",
                 f"𝐈𝐃 : {user.id}",
             ],
-        )
+        ),
     )
 
 
 async def rules_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+    await send_royal(
+        update,
         royal_box(
-            "𝐑È𝐆𝐋𝐄𝐒",
+            "𝐑𝐄̀𝐆𝐋𝐄𝐒",
             [
                 "1. Respect entre membres.",
                 "2. Pas de spam.",
                 "3. Pas de contenu illégal.",
                 "4. Écoute les admins.",
             ],
-        )
+        ),
     )
 
 
-# ═══════ GLITCH LAB (fun) ═══════
+# ═══════ GLITCH LAB (réel) ═══════
 
 async def bugmenu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+    await send_royal(
+        update,
         royal_box(
             "𝐆𝐋𝐈𝐓𝐂𝐇 𝐋𝐀𝐁",
-            ["/bug", "/glitch", "/ferror", "/load", "/matrix", "/diagnostic"],
-        )
+            [
+                "/bug <id|@pseudo> • /ping",
+                "/glitch • /ferror • /load",
+                "/matrix • /diagnostic • /stop",
+            ],
+        ),
+    )
+
+
+async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    t0 = time.perf_counter()
+    msg = await update.effective_message.reply_text("🏓 ...")
+    t1 = time.perf_counter()
+    latency_ms = (t1 - t0) * 1000
+    uptime = int(time.time() - START_TIME)
+    await msg.edit_text(
+        f"🏓 𝐏𝐎𝐍𝐆 !\n⚡ Latence : {latency_ms:.0f} ms\n⏱️ Uptime : {uptime}s"
     )
 
 
 async def bug_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"🐞 Bug détecté : {random.choice(FAKE_TASKS)}")
+    # 🎯 Cible optionnelle : /bug <user_id> ou /bug @username ou réponse
+    target_id = None
+    target_label = "aucune cible"
+
+    if context.args:
+        arg = context.args[0].lstrip("@")
+        if arg.isdigit():
+            target_id = int(arg)
+            target_label = f"ID {target_id}"
+        else:
+            try:
+                chat = await context.bot.get_chat("@" + arg)
+                target_id = chat.id
+                target_label = f"@{arg}"
+            except Exception:
+                target_label = f"@{arg} (introuvable)"
+    elif update.message.reply_to_message:
+        u = update.message.reply_to_message.from_user
+        target_id = u.id
+        target_label = f"{u.full_name} (ID {u.id})"
+
+    # 💥 Vrai bug : vraie exception Python -> vraie stacktrace
+    try:
+        _ = 1 / 0
+    except Exception:
+        tb = traceback.format_exc()
+
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    sysinfo = (
+        f"Python {platform.python_version()} | "
+        f"{platform.system()} {platform.release()} | "
+        f"uptime {int(time.time() - START_TIME)}s"
+    )
+
+    header = (
+        "╭─〔 🐞 𝐁𝐔𝐆 𝐑𝐄́𝐄𝐋 〕─╮\n"
+        f"│ 🎯 𝐂𝐢𝐛𝐥𝐞 : {target_label}\n"
+        f"│ 🕐 {ts}\n"
+        f"│ 🖥️ {sysinfo}\n"
+        "╰────────────────╯"
+    )
+    text = f"{header}\n```\n{tb}\n```"
+
+    # Mentionne la cible si valide dans le chat
+    if target_id and update.effective_chat.type != "private":
+        try:
+            member = await context.bot.get_chat_member(
+                update.effective_chat.id, target_id
+            )
+            text = f"🎯 {member.user.mention_html()}\n" + text
+            await send_royal(update, text, parse_mode="HTML")
+            return
+        except Exception:
+            pass
+
+    await send_royal(update, text, parse_mode="Markdown")
 
 
 async def glitch_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    glitch_text = "".join(random.choice("#@$%&/\\*01") for _ in range(20))
-    await update.message.reply_text(f"⚡ GLITCH : {glitch_text}")
+    base = " ".join(context.args) if context.args else "PHENIX GLITCH LAB"
+    corrupted = "".join(
+        random.choice("#@$%&/\\*01") if random.random() < 0.3 else c for c in base
+    )
+    await send_royal(update, f"⚡ GLITCH : {corrupted}")
 
 
 async def ferror_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ FATAL ERROR 0x" + str(random.randint(1000, 9999)))
+    code = f"0x{random.randint(0x1000, 0xFFFF):04X}"
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    await send_royal(update, f"❌ FATAL ERROR {code}\n🕐 {ts}")
 
 
 async def load_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = await update.message.reply_text("⏳ Chargement...")
-    for pct in (25, 50, 75, 100):
-        await asyncio.sleep(0.6)
-        await msg.edit_text(f"⏳ Chargement... {pct}%")
+    msg = await update.effective_message.reply_text("⏳ Chargement... 0%")
+    for pct in (20, 40, 60, 80, 100):
+        await asyncio.sleep(0.5)
+        try:
+            await msg.edit_text(f"⏳ Chargement... {pct}%")
+        except Exception:
+            break
+    await msg.edit_text("✅ Chargement terminé.")
 
 
 async def matrix_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lines = ["".join(random.choice("01") for _ in range(20)) for _ in range(5)]
-    await update.message.reply_text("```\n" + "\n".join(lines) + "\n```", parse_mode="Markdown")
+    msg = await update.effective_message.reply_text(
+        "```\n⏳\n```", parse_mode="Markdown"
+    )
+    for _ in range(6):
+        frame = "\n".join(
+            "".join(random.choice("01 ") for _ in range(24)) for _ in range(6)
+        )
+        await asyncio.sleep(0.4)
+        try:
+            await msg.edit_text(f"```\n{frame}\n```", parse_mode="Markdown")
+        except Exception:
+            break
 
 
 async def diagnostic_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        royal_box("𝐃𝐈𝐀𝐆𝐍𝐎𝐒𝐓𝐈𝐂", ["Tous les systèmes sont opérationnels. ✅"])
-    )
+    uptime = int(time.time() - START_TIME)
+    lines = [
+        f"𝐏𝐲𝐭𝐡𝐨𝐧 : {platform.python_version()}",
+        f"𝐎𝐒 : {platform.system()} {platform.release()}",
+        f"𝐔𝐩𝐭𝐢𝐦𝐞 : {uptime}s",
+    ]
+    if psutil:
+        cpu = psutil.cpu_percent(interval=0.3)
+        ram = psutil.virtual_memory()
+        disk = psutil.disk_usage("/")
+        lines += [
+            f"𝐂𝐏𝐔 : {cpu}%",
+            f"𝐑𝐀𝐌 : {ram.percent}% ({ram.used // (1024**2)} / {ram.total // (1024**2)} MB)",
+            f"𝐃𝐢𝐬𝐪𝐮𝐞 : {disk.percent}%",
+        ]
+    else:
+        lines.append("𝐒𝐲𝐬𝐭𝐞̀𝐦𝐞 : psutil non installé")
+    await send_royal(update, royal_box("𝐃𝐈𝐀𝐆𝐍𝐎𝐒𝐓𝐈𝐂", lines))
 
 
 async def stop_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🛑 Arrêt des processus simulés.")
+    await send_royal(update, "🛑 Arrêt des processus simulés.")
 
 
-# ═══════ MODÉRATION ═══════
+# ═══════ COMMANDES RÉELLES (vraies données) ═══════
+
+async def whois_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # /whois <id|@pseudo> ou réponse à un message
+    target = None
+    if context.args:
+        arg = context.args[0].lstrip("@")
+        try:
+            if arg.isdigit():
+                target = await context.bot.get_chat(int(arg))
+            else:
+                target = await context.bot.get_chat("@" + arg)
+        except Exception as e:
+            await send_royal(update, f"❌ Introuvable : {e}")
+            return
+    elif update.message.reply_to_message:
+        target = update.message.reply_to_message.from_user
+    if not target:
+        await send_royal(update, "Utilise /whois <id|@pseudo> ou réponds à un message.")
+        return
+
+    lines = [
+        f"𝐍𝐨𝐦 : {target.full_name}",
+        f"𝐔𝐬𝐞𝐫𝐧𝐚𝐦𝐞 : @{target.username or 'aucun'}",
+        f"𝐈𝐃 : {target.id}",
+        f"𝐁𝐨𝐭 : {'oui' if target.is_bot else 'non'}",
+    ]
+    if update.effective_chat.type != "private":
+        try:
+            m = await context.bot.get_chat_member(update.effective_chat.id, target.id)
+            lines.append(f"𝐒𝐭𝐚𝐭𝐮𝐭 : {m.status}")
+        except Exception:
+            pass
+    await send_royal(update, royal_box("𝐖𝐇𝐎𝐈𝐒", lines))
+
+
+async def chatstats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    try:
+        full = await context.bot.get_chat(chat.id)
+        count = await context.bot.get_chat_member_count(chat.id)
+        lines = [
+            f"𝐓𝐢𝐭𝐫𝐞 : {full.title or full.full_name}",
+            f"𝐓𝐲𝐩𝐞 : {full.type}",
+            f"𝐈𝐃 : {chat.id}",
+            f"𝐌𝐞𝐦𝐛𝐫𝐞𝐬 : {count}",
+        ]
+        if full.description:
+            lines.append(f"𝐃𝐞𝐬𝐜 : {full.description[:60]}")
+        await send_royal(update, royal_box("𝐂𝐇𝐀𝐓 𝐒𝐓𝐀𝐓𝐒", lines))
+    except Exception as e:
+        await send_royal(update, f"❌ Erreur : {e}")
+
+
+async def uptime_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    up = int(time.time() - START_TIME)
+    h, rem = divmod(up, 3600)
+    m, s = divmod(rem, 60)
+    await send_royal(
+        update,
+        royal_box("𝐔𝐏𝐓𝐈𝐌𝐄", [f"⏱️ {h}h {m}m {s}s", f"𝐒𝐞𝐜𝐨𝐧𝐝𝐞𝐬 : {up}"]),
+    )
+
+
+async def sysinfo_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lines = [
+        f"𝐏𝐲𝐭𝐡𝐨𝐧 : {platform.python_version()}",
+        f"𝐎𝐒 : {platform.system()} {platform.release()}",
+        f"𝐀𝐫𝐜𝐡 : {platform.machine()}",
+        f"𝐏𝐫𝐨𝐜𝐞𝐬𝐬𝐞𝐮𝐫 : {platform.processor() or 'n/a'}",
+    ]
+    if psutil:
+        vm = psutil.virtual_memory()
+        lines += [
+            f"𝐂𝐏𝐔 : {psutil.cpu_count()} cœurs",
+            f"𝐑𝐀𝐌 : {vm.used // (1024**2)} / {vm.total // (1024**2)} MB",
+            f"𝐃𝐢𝐬𝐪𝐮𝐞 : {psutil.disk_usage('/').percent}%",
+        ]
+    await send_royal(update, royal_box("𝐒𝐘𝐒𝐈𝐍𝐅𝐎", lines))
+
+
+async def admins_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == "private":
+        await send_royal(update, "Commande disponible en groupe uniquement.")
+        return
+    try:
+        admins = await context.bot.get_chat_administrators(update.effective_chat.id)
+        lines = [
+            f"{'👑' if a.status == ChatMemberStatus.OWNER else '🛡️'} "
+            f"{a.user.full_name} — {a.user.id}"
+            for a in admins
+        ]
+        await send_royal(update, royal_box("𝐀𝐃𝐌𝐈𝐍𝐒", lines or ["aucun"]))
+    except Exception as e:
+        await send_royal(update, f"❌ Erreur : {e}")
+
+
+async def members_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == "private":
+        await send_royal(update, "Commande disponible en groupe uniquement.")
+        return
+    try:
+        count = await context.bot.get_chat_member_count(update.effective_chat.id)
+        await send_royal(update, royal_box("𝐌𝐄𝐌𝐁𝐑𝐄𝐒", [f"👥 Total : {count}"]))
+    except Exception as e:
+        await send_royal(update, f"❌ Erreur : {e}")
+
+
+# ═══════ MODÉRATION (réelle) ═══════
 
 async def _get_target_user(update):
     if update.message.reply_to_message:
@@ -287,41 +507,41 @@ async def _get_target_user(update):
 
 async def ban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update, context):
-        await update.message.reply_text("🚫 Réservé aux admins.")
+        await send_royal(update, "🚫 Réservé aux admins.")
         return
     target = await _get_target_user(update)
     if not target:
-        await update.message.reply_text("Réponds au message de la personne à bannir.")
+        await send_royal(update, "Réponds au message de la personne à bannir.")
         return
     try:
         await context.bot.ban_chat_member(update.effective_chat.id, target.id)
-        await update.message.reply_text(f"🔨 {target.full_name} a été banni.")
+        await send_royal(update, f"🔨 {target.full_name} a été banni.")
     except Exception as e:
-        await update.message.reply_text(f"Erreur : {e}")
+        await send_royal(update, f"Erreur : {e}")
 
 
 async def unban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update, context):
-        await update.message.reply_text("🚫 Réservé aux admins.")
+        await send_royal(update, "🚫 Réservé aux admins.")
         return
     if not context.args:
-        await update.message.reply_text("Utilise /unban <user_id>")
+        await send_royal(update, "Utilise /unban <user_id>")
         return
     try:
         user_id = int(context.args[0])
         await context.bot.unban_chat_member(update.effective_chat.id, user_id)
-        await update.message.reply_text("✅ Utilisateur débanni.")
+        await send_royal(update, "✅ Utilisateur débanni.")
     except Exception as e:
-        await update.message.reply_text(f"Erreur : {e}")
+        await send_royal(update, f"Erreur : {e}")
 
 
 async def mute_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update, context):
-        await update.message.reply_text("🚫 Réservé aux admins.")
+        await send_royal(update, "🚫 Réservé aux admins.")
         return
     target = await _get_target_user(update)
     if not target:
-        await update.message.reply_text("Réponds au message de la personne à mute.")
+        await send_royal(update, "Réponds au message de la personne à mute.")
         return
     try:
         await context.bot.restrict_chat_member(
@@ -329,18 +549,18 @@ async def mute_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target.id,
             permissions=ChatPermissions(can_send_messages=False),
         )
-        await update.message.reply_text(f"🔇 {target.full_name} a été mute.")
+        await send_royal(update, f"🔇 {target.full_name} a été mute.")
     except Exception as e:
-        await update.message.reply_text(f"Erreur : {e}")
+        await send_royal(update, f"Erreur : {e}")
 
 
 async def unmute_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_admin(update, context):
-        await update.message.reply_text("🚫 Réservé aux admins.")
+        await send_royal(update, "🚫 Réservé aux admins.")
         return
     target = await _get_target_user(update)
     if not target:
-        await update.message.reply_text("Réponds au message de la personne à démute.")
+        await send_royal(update, "Réponds au message de la personne à démute.")
         return
     try:
         await context.bot.restrict_chat_member(
@@ -352,34 +572,50 @@ async def unmute_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 can_add_web_page_previews=True,
             ),
         )
-        await update.message.reply_text(f"🔊 {target.full_name} a été démute.")
+        await send_royal(update, f"🔊 {target.full_name} a été démute.")
     except Exception as e:
-        await update.message.reply_text(f"Erreur : {e}")
+        await send_royal(update, f"Erreur : {e}")
 
 
-# ═══════ JEUX ═══════
+# ═══════ JEUX (réels) ═══════
+
+QUIZZES = [
+    ("Quelle est la planète rouge ?", "mars"),
+    ("Combien de jours dans une semaine ?", "7"),
+    ("Quel animal est le roi des animaux ?", "lion"),
+    ("Combien font 8 × 7 ?", "56"),
+    ("Comment doro une purgeuse?", "être stylé"),
+    ("Qui est le father du bot ?", "@Mr_king_kayseur"),
+]
+
+RIDDLES = [
+    ("J'ai des aiguilles mais je ne couds pas.", "horloge"),
+    ("Plus je sèche, plus je deviens mouillée.", "serviette"),
+    ("Je monte et descends sans bouger.", "escalier"),
+]
+
 
 async def quiz_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question, answer = random.choice(QUIZZES)
     context.chat_data["quiz_answer"] = answer.lower()
-    await update.message.reply_text(f"🧠 QUIZ : {question}")
+    await send_royal(update, f"🧠 QUIZ : {question}")
 
 
 async def devinette_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question, answer = random.choice(RIDDLES)
     context.chat_data["quiz_answer"] = answer.lower()
-    await update.message.reply_text(f"🔎 DEVINETTE : {question}")
+    await send_royal(update, f"🔎 DEVINETTE : {question}")
 
 
 async def nombre_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     NUMBER_GAMES[update.effective_chat.id] = random.randint(1, 100)
-    await update.message.reply_text("🔢 J'ai pensé à un nombre entre 1 et 100. Devine-le !")
+    await send_royal(update, "🔢 J'ai pensé à un nombre entre 1 et 100. Devine-le !")
 
 
 async def score_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pts = SCORES.get(user.id, 0)
-    await update.message.reply_text(f"🏆 Ton score : {pts} point(s).")
+    await send_royal(update, f"🏆 Ton score : {pts} point(s).")
 
 
 # ═══════ MESSAGES TEXTE (jeux + anti-spam) ═══════
@@ -392,7 +628,6 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     text = update.message.text.strip()
 
-    # Anti-spam
     now = datetime.now(timezone.utc)
     queue = RECENT_MESSAGES[(chat_id, user.id)]
     queue.append(now)
@@ -405,7 +640,6 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         return
 
-    # Réponse quiz/devinette
     expected = context.chat_data.get("quiz_answer")
     if expected and text.lower() == expected:
         SCORES[user.id] += 1
@@ -413,7 +647,6 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Bonne réponse {user.first_name} ! +1 point.")
         return
 
-    # Jeu du nombre mystère
     if chat_id in NUMBER_GAMES and text.lstrip("-").isdigit():
         guess = int(text)
         target = NUMBER_GAMES[chat_id]
@@ -481,12 +714,20 @@ def main():
 
     app.add_handler(CommandHandler("bugmenu", bugmenu_cmd))
     app.add_handler(CommandHandler("bug", bug_cmd))
+    app.add_handler(CommandHandler("ping", ping_cmd))
     app.add_handler(CommandHandler("glitch", glitch_cmd))
     app.add_handler(CommandHandler("ferror", ferror_cmd))
     app.add_handler(CommandHandler("load", load_cmd))
     app.add_handler(CommandHandler("matrix", matrix_cmd))
     app.add_handler(CommandHandler("diagnostic", diagnostic_cmd))
     app.add_handler(CommandHandler("stop", stop_cmd))
+
+    app.add_handler(CommandHandler("whois", whois_cmd))
+    app.add_handler(CommandHandler("chatstats", chatstats_cmd))
+    app.add_handler(CommandHandler("uptime", uptime_cmd))
+    app.add_handler(CommandHandler("sysinfo", sysinfo_cmd))
+    app.add_handler(CommandHandler("admins", admins_cmd))
+    app.add_handler(CommandHandler("members", members_cmd))
 
     app.add_handler(CommandHandler("ban", ban_cmd))
     app.add_handler(CommandHandler("unban", unban_cmd))
@@ -507,4 +748,3 @@ def main():
 
 if __name__ == "__main__":
     main()
- 
