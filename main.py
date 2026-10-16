@@ -46,7 +46,7 @@ CHANNEL_ID = "4454958268"
 
 # 🖼️ Image utilisée pour TOUTES les commandes
 # Mets un lien DIRECT (fichier .jpg/.png), pas une page ibb.co
-START_IMAGE = "https://ibb.co/ycWd72ZM"
+START_IMAGE = "https://pdftolink.io/file/r2_dXNlcnMva2luZ2theXNldXJfZ21haWwuY29tLzgyMDYwMjYwLThhOWEtNGY4YS1iYmY5LWVjOTI0ODM3YjcyYy5wbmc"
 
 WELCOME_IMAGE = START_IMAGE
 GOODBYE_IMAGE = START_IMAGE
