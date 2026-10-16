@@ -41,7 +41,7 @@ BOT_NAME = "🌊ᬼ⃟ ⃪ₘᵣ ₖᵢₙG ₖₐYₛₑᵤᵣ ₜₕₑ Gₗ�
 DEVELOPER_NAME = "@Mr_king_kayseur"
 PREFIX = "/"
 
-CHANNEL_URL = "https://t.me/Glitch_Dev_Fenix667"
+CHANNEL_URL = "https://t.me/PhenixGuy"
 CHANNEL_ID = "4454958268"
 
 # 🖼️ Image utilisée pour TOUTES les commandes
@@ -70,7 +70,7 @@ START_TIME = time.time()
 
 def configured_channel():
     return (
-        CHANNEL_URL.startswith("https://t.me/")
+        CHANNEL_URL.startswith("https://t.me/PhenixGuy")
         and CHANNEL_ID != "4454958268"
         and bool(CHANNEL_ID)
     )
@@ -101,7 +101,7 @@ def main_menu_text(user):
         "╰────────────────╯\n\n"
         "╭─〔 🍓 𝐆𝐋𝐈𝐓𝐂𝐇 𝐋𝐀𝐁 〕─╮\n"
         "│ /bugmenu • /bug • /ping\n"
-        "│ /glitch • /ferror • /load\n"
+        "│ /glitch • /error • /load\n"
         "│ /matrix • /diagnostic • /stop\n"
         "╰────────────────╯\n\n"
         "╭─〔 🛡️ 𝐌𝐎𝐃𝐄́𝐑𝐀𝐓𝐈𝐎𝐍 〕─╮\n"
@@ -247,7 +247,7 @@ async def bugmenu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "𝐆𝐋𝐈𝐓𝐂𝐇 𝐋𝐀𝐁",
             [
                 "/bug <id|@pseudo> • /ping",
-                "/glitch • /ferror • /load",
+                "/glitch • /error • /load",
                 "/matrix • /diagnostic • /stop",
             ],
         ),
@@ -287,7 +287,7 @@ async def bug_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_id = u.id
         target_label = f"{u.full_name} (ID {u.id})"
 
-    # 💥 Vrai bug : vraie exception Python -> vraie stacktrace
+    # 💥 bug : exception Python -> stacktrace
     try:
         _ = 1 / 0
     except Exception:
@@ -586,6 +586,8 @@ QUIZZES = [
     ("Combien font 8 × 7 ?", "56"),
     ("Comment doro une purgeuse?", "être stylé"),
     ("Qui est le father du bot ?", "@Mr_king_kayseur"),
+    ("La purge à été créé dans quel pays", "le gabon"),
+    ("Lionel Messi à combien de balon d'or", "?"),
 ]
 
 RIDDLES = [
@@ -675,7 +677,7 @@ async def greet_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     left_statuses = (ChatMemberStatus.LEFT, ChatMemberStatus.BANNED)
 
     if old_status not in joined_statuses and new_status in joined_statuses:
-        text = f"👑 Bienvenue {user.mention_html()} dans le royaume !"
+        text = f"👑 Bienvenue {user.mention_html()} dans le royaume ! soit heureux d'être parmi les puissants 💫"
         try:
             if WELCOME_IMAGE:
                 await context.bot.send_photo(
@@ -687,7 +689,7 @@ async def greet_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(result.chat.id, text, parse_mode="HTML")
 
     elif new_status in left_statuses and old_status not in left_statuses:
-        text = f"👋 {user.full_name} a quitté le royaume."
+        text = f"👋 {user.full_name} a quitté le royaume parce-que c'est un con 🕷️."
         try:
             if GOODBYE_IMAGE:
                 await context.bot.send_photo(result.chat.id, photo=GOODBYE_IMAGE, caption=text)
