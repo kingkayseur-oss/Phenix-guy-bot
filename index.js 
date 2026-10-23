@@ -6,7 +6,7 @@ const axios = require('axios')
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const NAME = "PHENIX LAB"
+const NAME = "𝆭🍓𝂅‌𝐏̤𝐇ׄ͟𝐄ֵᩘ𝐍ֿ‌︬𝐈𝐗ֺ࡙ࣨ͟×͜×𝐆ִֵ𝐔⃪ֺ𐇽𝐘⃪⃪ׅ֩ 🛀˙𝂅‌‌"
 const TG = "https://t.me/PhenixGuy"
 const WA_CH = "https://whatsapp.com/channel/0029Vb8cfQn8V0te5K0atc1s"
 
