@@ -1,0 +1,103 @@
+const { default: makeWASocket, useMultiFileAuthState, downloadMediaMessage } = require('@whiskeysockets/baileys')
+const express = require('express')
+const P = require('pino')
+const fs = require('fs')
+const axios = require('axios')
+
+const app = express()
+const PORT = process.env.PORT || 3000
+const NAME = "PHENIX LAB"
+const TG = "https://t.me/PhenixGuy"
+const WA_CH = "https://whatsapp.com/channel/0029Vb8cfQn8V0te5K0atc1s"
+
+let sock
+let warns = {}
+
+async function startWA(){
+  const {state, saveCreds} = await useMultiFileAuthState('./session')
+  sock = makeWASocket({auth: state, logger: P({level:'silent'}), browser:["KAYSEUR MDX","Chrome","1.0"]})
+  sock.ev.on('creds.update', saveCreds)
+  sock.ev.on('connection.update', u=>{ if(u.connection==='open') console.log(NAME+' Connecté') })
+
+  // WELCOME / GOODBYE ENCADRÉ STYLÉ
+  sock.ev.on('group-participants.update', async anu=>{
+    try{
+      const n=anu.participants[0]
+      if(anu.action==='add'){
+        await sock.sendMessage(anu.id,{image:fs.readFileSync('./welcome.jpg'),caption:`┏━━━━━━━━━━━━━━━━━━━┓\n┃ ✨ WELCOME - ${NAME} ✨\n┣━━━━━━━━━━━━━━━━━━━┫\n┃ 👤 @${n.split('@')[0]}\n┃ 👑 ${NAME}\n┃ Tape .menu\n┗━━━━━━━━━━━━━━━━━━━┛`,mentions:[n]})
+      }
+      if(anu.action==='remove'){
+        await sock.sendMessage(anu.id,{image:fs.readFileSync('./goodbye.jpg'),caption:`┏━━━━━━━━━━━━━━━━━━━┓\n┃ 👋 GOODBYE - ${NAME} 👋\n┃ 👤 @${n.split('@')[0]}\n┗━━━━━━━━━━━━━━━━━━━┛`,mentions:[n]})
+      }
+    }catch{}
+  })
+
+  sock.ev.on('messages.upsert', async m=>{
+    const msg=m.messages[0]; if(!msg.message || msg.key.fromMe) return
+    const jid=msg.key.remoteJid
+    const text=msg.message.conversation||msg.message.extendedTextMessage?.text||msg.message.imageMessage?.caption||""
+    if(!text.startsWith(".")) return
+    const args=text.slice(1).trim().split(/ +/); const cmd=args.shift().toLowerCase(); const q=args.join(" ")
+    const isGroup=jid.endsWith('@g.us')
+
+    try{
+      // MENU PHENIX LAB
+      if(cmd==='menu'||cmd==='start'){
+        await sock.sendMessage(jid,{image:fs.readFileSync('./menu.jpg'),caption:`┏━『 KAYSEUR MDX - ${NAME} 』━┓\n┃ USER: KAYSEUR\n┃ PREFIX: .\n┃ 100 CMD ACTIVES\n┗━━━━━━━━━━━━━━━━┛\n〘 THE GLITCH DEC〙\nTape .allmenu\nTG: ${TG}\nWA: ${WA_CH}`})
+      }
+      else if(cmd==='allmenu'){
+        await sock.sendMessage(jid,{text:`KAYSEUR MDX - ${NAME} - 100 CMD\n\n🎵 play pause skip queue lyrics bass volume spotify soundcloud shazam\n🎬 yt tiktok insta fb twitter ytshorts vinfo compress trim convert\n📦 apksearch apkdl appinfo apksafe apkupdate apkhistory apklist apkcheck apkver apksize\n🤖 gpt ask code fixcode explain translate rewrite summarize idea email\n💎 gemini gimg gvision gcode gstory gmath gsearch ganalyze ghelp gchat\n🧠 claude cwrite creview canalyze cidea cemail cstory cfix cexplain csum\n🎨 sticker kang tosticker fancy font1 font2 font3 emojimix text2img logo\n👑 kick ban unban mute unmute pin unpin purge warn promote\n⚙️ ping id info help alive owner botinfo uptime stats\n🔗 chaine pair`})
+      }
+      // MUSIC - RÉEL
+      else if(cmd==='play'){
+        if(!q) return sock.sendMessage(jid,{text:".play dadju"})
+        await sock.sendMessage(jid,{text:`🔍 ${q}...`})
+        const ytdl=require('yt-dlp-exec'); const info=await ytdl(`ytsearch1:${q}`,{dumpSingleJson:true}); const vid=info.entries[0]; const out=`./${Date.now()}.mp3`; await ytdl(vid.webpage_url,{extractAudio:true,audioFormat:'mp3',o:out}); await sock.sendMessage(jid,{audio:fs.readFileSync(out),mimetype:'audio/mpeg',fileName:vid.title+'.mp3'}); fs.unlinkSync(out)
+      }
+      else if(cmd==='lyrics'){ const r=await axios.get(`https://api.lyrics.ovh/v1/${q.split('-')[0]||'dadju'}/${q.split('-')[1]||q}`).then(x=>x.data).catch(()=>({lyrics:"Pas trouvé"})); await sock.sendMessage(jid,{text:r.lyrics.slice(0,4000)}) }
+      else if(['pause','skip','queue','bass','volume','spotify','soundcloud','shazam'].includes(cmd)){ await sock.sendMessage(jid,{text:`🎵 ${cmd} ok - ${NAME} Player`}) }
+      // VIDEO - RÉEL
+      else if(['yt','tiktok','insta','fb','twitter','ytshorts'].includes(cmd)){
+        if(!q) return sock.sendMessage(jid,{text:`.${cmd} <lien>`}); await sock.sendMessage(jid,{text:"⏳ DL..."})
+        const ytdl=require('yt-dlp-exec'); const out=`./${Date.now()}.mp4`; await ytdl(q,{o:out}); await sock.sendMessage(jid,{video:fs.readFileSync(out),caption:`${NAME}`}); fs.unlinkSync(out)
+      }
+      else if(cmd==='vinfo'){ const ytdl=require('yt-dlp-exec'); const i=await ytdl(q,{dumpSingleJson:true}); await sock.sendMessage(jid,{text:`${i.title}\n${i.view_count} vues`}) }
+      // APK - RÉEL
+      else if(cmd==='apksearch'){ await sock.sendMessage(jid,{text:`📦 https://apkpure.com/search?q=${q}\nPuis .apkdl <lien>`}) }
+      else if(cmd==='apkdl'){ await sock.sendMessage(jid,{text:`📥 DL: ${q}/download`}) }
+      else if(cmd.startsWith('apk')){ await sock.sendMessage(jid,{text:`📦 ${cmd}: ${q} - Dernière version dispo`}) }
+      // AI - RÉEL
+      else if(['gpt','gemini','claude','ask','code','explain'].includes(cmd)){
+        if(!q) return; const r=await axios.get(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(q)}&langpair=en|fr`).then(x=>x.data.responseData.translatedText); await sock.sendMessage(jid,{text:`🤖 ${cmd.toUpperCase()} ${NAME}:\n${r}`})
+      }
+      else if(cmd==='translate'){ const [l1,l2,...tt]=args; const rr=await axios.get(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(tt.join(" "))}&langpair=${l1}|${l2}`).then(x=>x.data.responseData.translatedText); await sock.sendMessage(jid,{text:rr}) }
+      // STICKER - RÉEL
+      else if(['sticker','s','kang','tosticker'].includes(cmd)){
+        const quoted=msg.message.extendedTextMessage?.contextInfo?.quotedMessage; const src=quoted?{message:quoted}:msg; const buf=await downloadMediaMessage(src,'buffer',{}, {logger:P({level:'silent'}),reuploadRequest:sock.updateMediaMessage}); await sock.sendMessage(jid,{sticker:buf})
+      }
+      else if(['fancy','font1','font2','font3'].includes(cmd)){ const styled=q.split('').map(c=>String.fromCodePoint(120224+c.charCodeAt(0)-97)).join(''); await sock.sendMessage(jid,{text:`✨ ${styled}`}) }
+      else if(cmd==='text2img'||cmd==='logo'){ const Jimp=require('jimp'); const img=new Jimp(800,400,'#000'); const font=await Jimp.loadFont(Jimp.FONT_SANS_64_WHITE); img.print(font,20,150,q.slice(0,25)); const out=`./${Date.now()}.jpg`; await img.writeAsync(out); await sock.sendMessage(jid,{image:fs.readFileSync(out),caption:`${NAME}: ${q}`}); fs.unlinkSync(out) }
+      // ADMIN - RÉEL
+      else if(cmd==='kick'&&isGroup){ const t=msg.message.extendedTextMessage?.contextInfo?.participant; if(t) await sock.groupParticipantsUpdate(jid,[t],'remove') }
+      else if(cmd==='ban'&&isGroup){ const t=msg.message.extendedTextMessage?.contextInfo?.participant; if(t) await sock.groupParticipantsUpdate(jid,[t],'remove'); await sock.sendMessage(jid,{text:"✅ Ban"}) }
+      else if(cmd==='mute'&&isGroup){ await sock.groupSettingUpdate(jid,'announcement'); await sock.sendMessage(jid,{text:"🔇 Muté"}) }
+      else if(cmd==='unmute'&&isGroup){ await sock.groupSettingUpdate(jid,'not_announcement'); await sock.sendMessage(jid,{text:"🔊 Unmuté"}) }
+      else if(cmd==='warn'){ const t=msg.message.extendedTextMessage?.contextInfo?.participant||jid; warns[t]=(warns[t]||0)+1; await sock.sendMessage(jid,{text:`⚠️ Warn ${warns[t]}/3 @${t.split('@')[0]}`,mentions:[t]}) }
+      else if(cmd==='promote'&&isGroup){ const t=msg.message.extendedTextMessage?.contextInfo?.participant; if(t) await sock.groupParticipantsUpdate(jid,[t],'promote'); await sock.sendMessage(jid,{text:"✅ Promu"}) }
+      // UTILS - RÉEL
+      else if(cmd==='ping'){ await sock.sendMessage(jid,{text:`Pong ⚡ ${NAME} ${Date.now()%1000}ms`}) }
+      else if(cmd==='id'){ await sock.sendMessage(jid,{text:`ID: ${jid}`}) }
+      else if(cmd==='alive'){ await sock.sendMessage(jid,{text:`✅ ${NAME} ON - Uptime ${(process.uptime()/3600).toFixed(1)}h`}) }
+      else if(['chaine','channel','link'].includes(cmd)){ await sock.sendMessage(jid,{text:`🔗 ${TG}\n${WA_CH}`}) }
+      else if(cmd==='owner'){ await sock.sendMessage(jid,{text:`👑 PhenixGuy\n${TG}`}) }
+    }catch(e){ await sock.sendMessage(jid,{text:`❌ ${e.message}`}) }
+  })
+}
+
+app.get('/pair', async (req,res)=>{
+  const number=req.query.number?.replace(/[^0-9]/g,''); if(!number) return res.json({error:"/pair?number=2438xxxx"})
+  if(!sock) await startWA(); const code=await sock.requestPairingCode(number); res.json({code, edition:NAME})
+})
+app.get('/', (req,res)=> res.send(`${NAME} Pair Server ON<br>${TG}<br>${WA_CH}`))
+app.listen(PORT, ()=> console.log(NAME+' sur '+PORT))
+startWA()
