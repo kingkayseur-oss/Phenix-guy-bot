@@ -1,0 +1,137 @@
+import os
+import time
+import requests
+import tempfile
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from PIL import Image
+import yt_dlp
+
+TOKEN = os.environ.get("BOT_TOKEN")
+PAIR_SERVER = os.environ.get("PAIR_SERVER", "https://ton-app-whatsapp.onrender.com")
+NAME = "𝆭🍓𝂅‌𝐏̤𝐇ׄ͟𝐄ֵᩘ𝐍ֿ‌︬𝐈𝐗ֺ࡙ࣨ͟×͜×𝐆ִֵ𝐔⃪ֺ𐇽𝐘⃪⃪ׅ֩ 🛀˙𝂅‌‌"
+TG = "https://t.me/PhenixGuy"
+WA_CH = "https://whatsapp.com/channel/0029Vb8cfQn8V0te5K0atc1s"
+
+def download_media(url, audio=False):
+    tmpdir = tempfile.mkdtemp()
+    opts = {
+        'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+        'quiet': True,
+        'format': 'bestaudio/best' if audio else 'best[filesize<60M]'
+    }
+    if audio:
+        opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec':'mp3'}]
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filepath = ydl.prepare_filename(info)
+        if audio:
+            filepath = filepath.rsplit('.', 1)[0] + '.mp3'
+        return filepath, info
+
+def yt_search(query):
+    with yt_dlp.YoutubeDL({'quiet':True,'default_search':'ytsearch1','skip_download':True}) as ydl:
+        result = ydl.extract_info(query, download=False)
+        return result['entries'][0]
+
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    kb = [[InlineKeyboardButton("🔗 Telegram", url=TG)], [InlineKeyboardButton("💬 WhatsApp", url=WA_CH)]]
+    caption = f"┏━『 KAYSEUR MDX - {NAME} 』━┓\n┃ PREFIX: .\n┃ 100 CMD ACTIVES\n┗━━━━━━━━━━━━━━━┛\n〘 LA PUISSANCE SE FORGE 〙"
+    try:
+        await update.message.reply_photo(open("menu.jpg","rb"), caption=caption, reply_markup=InlineKeyboardMarkup(kb))
+    except:
+        await update.message.reply_text(caption, reply_markup=InlineKeyboardMarkup(kb))
+
+async def allmenu(update, context):
+    await update.message.reply_text(f"{NAME} - 100 CMD\n.play .yt .tiktok .sticker .kick .ping .pair 243... .chaine")
+
+async def play_cmd(update, context):
+    if not context.args:
+        return await update.message.reply_text(".play dadju")
+    q = " ".join(context.args)
+    await update.message.reply_text(f"🔍 Recherche {q}...")
+    try:
+        video = yt_search(q)
+        file_path, info = download_media(video['webpage_url'], audio=True)
+        await update.message.reply_audio(open(file_path,'rb'), title=info.get('title',''))
+    except Exception as e:
+        await update.message.reply_text(f"Erreur: {e}")
+
+async def yt_cmd(update, context):
+    if not context.args:
+        return await update.message.reply_text(".yt <lien>")
+    await update.message.reply_text("⏳ Téléchargement...")
+    try:
+        file_path, info = download_media(context.args[0], audio=False)
+        await update.message.reply_video(open(file_path,'rb'), caption=info.get('title','')[:200])
+    except Exception as e:
+        await update.message.reply_text(f"Erreur: {e}")
+
+async def sticker_cmd(update, context):
+    if not update.message.reply_to_message or not update.message.reply_to_message.photo:
+        return await update.message.reply_text("Réponds à une photo avec .sticker")
+    file = await update.message.reply_to_message.photo[-1].get_file()
+    tmp1 = tempfile.mktemp(suffix=".jpg")
+    await file.download_to_drive(tmp1)
+    im = Image.open(tmp1)
+    im.thumbnail((512,512))
+    tmp2 = tempfile.mktemp(suffix=".webp")
+    im.save(tmp2,"WEBP")
+    await update.message.reply_sticker(open(tmp2,'rb'))
+
+async def ping_cmd(update, context):
+    start = time.time()
+    msg = await update.message.reply_text("Ping...")
+    await msg.edit_text(f"Pong {round((time.time()-start)*1000)}ms ⚡ {NAME}")
+
+async def pair_cmd(update, context):
+    if not context.args:
+        return await update.message.reply_text(".pair 2438xxxxxxxx")
+    number = context.args[0].replace("+","").replace(" ","")
+    await update.message.reply_text(f"⏳ Génération code pour {number}...")
+    try:
+        resp = requests.get(f"{PAIR_SERVER}/pair?number={number}", timeout=25).json()
+        if "code" in resp:
+            await update.message.reply_text(f"✅ CODE: *{resp['code']}*\nVa dans WhatsApp > Appareils liés > Lier avec numéro", parse_mode="Markdown")
+        else:
+            await update.message.reply_text(str(resp))
+    except Exception as e:
+        await update.message.reply_text(f"Erreur pair: {e}")
+
+async def chaine_cmd(update, context):
+    await update.message.reply_text(f"🔗 Telegram: {TG}\n💬 WhatsApp: {WA_CH}\n👑 {NAME}")
+
+async def welcome_handler(update, context):
+    for member in update.message.new_chat_members:
+        try:
+            await update.message.reply_photo(open("welcome.jpg","rb"), caption=f"┏━ WELCOME {NAME} ━┓\nBienvenue {member.full_name} ✨")
+        except:
+            await update.message.reply_text(f"Bienvenue {member.full_name} ✨ {NAME}")
+
+async def goodbye_handler(update, context):
+    if update.message.left_chat_member:
+        try:
+            await update.message.reply_photo(open("goodbye.jpg","rb"), caption=f"┏━ GOODBYE {NAME} ━┓\nAu revoir {update.message.left_chat_member.full_name} 👋")
+        except:
+            await update.message.reply_text(f"Au revoir {update.message.left_chat_member.full_name} 👋 {NAME}")
+
+def main():
+    if not TOKEN:
+        print("BOT_TOKEN manquant")
+        return
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler(["menu","start","chaine","channel"], menu))
+    app.add_handler(CommandHandler("allmenu", allmenu))
+    app.add_handler(CommandHandler("play", play_cmd))
+    app.add_handler(CommandHandler(["yt","tiktok","insta","fb","twitter"], yt_cmd))
+    app.add_handler(CommandHandler("sticker", sticker_cmd))
+    app.add_handler(CommandHandler("ping", ping_cmd))
+    app.add_handler(CommandHandler("pair", pair_cmd))
+    app.add_handler(CommandHandler("chaine", chaine_cmd))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_handler))
+    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, goodbye_handler))
+    print(f"{NAME} démarré")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
