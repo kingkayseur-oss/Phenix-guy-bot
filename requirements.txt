@@ -1,0 +1,5 @@
+python-telegram-bot==21.6
+Pillow>=10.1
+qrcode[pil]>=7.4
+httpx>=0.27
+yt-dlp
